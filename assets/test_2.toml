@@ -1,0 +1,13 @@
+ip = '127.0.0.1'
+sample_from_grid = true
+
+[keys]
+github = 'zzzzzzz'
+travis = 'yyyyyyyyyyyyyyyyy'
+
+[input]
+sample_from_grid = true
+train_std = [ 43.21194, 51.17222, 34.87386,]
+image_width = 4096
+hue_delta = 0.05
+input_data_format = "hybrid_pretiled"

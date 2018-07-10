@@ -1,0 +1,9 @@
+[package]
+name = "difftoml"
+version = "0.1.0"
+authors = ["Ole-Johan Skrede <ojskrede@gmail.com>"]
+
+[dependencies]
+clap = "2.32"
+toml = "0.4"
+failure = "0.1"
