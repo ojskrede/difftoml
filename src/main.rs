@@ -19,16 +19,12 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool), Error> {
                     .author("Ole-Johan Skrede")
                     .about("Diplay the difference between two toml files")
                     .arg(Arg::with_name("first")
-                        .short("f")
-                        .long("first")
                         .value_name("TOML FILE")
                         .help("First toml file")
                         .takes_value(true)
                         .required(true)
                     )
                     .arg(Arg::with_name("second")
-                        .short("s")
-                        .long("second")
                         .value_name("TOML FILE")
                         .help("Second toml file")
                         .takes_value(true)
@@ -183,22 +179,19 @@ fn compare_vectors<T: Eq+Clone>(
     Ok((in_first_only, in_second_only, in_both))
 }
 
-fn main() -> Result<(), Error> {
-
-    let (first_path, second_path, display_equal) = input_args()?;
-
-    let first_collection = parse_toml(&first_path)?;
-    let second_collection = parse_toml(&second_path)?;
-
-    let first_keys: Vec<&Vec<String>> = first_collection.keys().collect();
-    let second_keys: Vec<&Vec<String>> = second_collection.keys().collect();
-
-    let (keys_in_first_only, keys_in_second_only, keys_in_both) = compare_vectors(&first_keys,
-                                                                                  &second_keys)?;
-
+fn display(
+    first_path: &Path,
+    second_path: &Path,
+    first_collection: &HashMap<Vec<String>, toml::Value>,
+    second_collection: &HashMap<Vec<String>, toml::Value>,
+    keys_in_first_only: Vec<&Vec<String>>,
+    keys_in_second_only: Vec<&Vec<String>>,
+    keys_in_both: Vec<&Vec<String>>,
+    display_equal: bool,
+) {
     if !keys_in_first_only.is_empty() {
         println!("");
-        println!("Keys only found in {}", first_path.display());
+        println!("Entries only found in {}", first_path.display());
         for key in keys_in_first_only {
             match first_collection.get(key) {
                 Some(val) => {
@@ -211,7 +204,7 @@ fn main() -> Result<(), Error> {
 
     if !keys_in_second_only.is_empty() {
         println!("");
-        println!("Keys only found in {}", second_path.display());
+        println!("Entries only found in {}", second_path.display());
         for key in keys_in_second_only {
             match second_collection.get(key) {
                 Some(val) => {
@@ -235,8 +228,8 @@ fn main() -> Result<(), Error> {
             };
             if first_val != second_val {
                 println!("Unequal value for key {:?}", key);
-                println!("First value : {}", first_val);
-                println!("Second value: {}", second_val);
+                println!("<: {}", first_val);
+                println!(">: {}", second_val);
             }
         }
 
@@ -253,12 +246,36 @@ fn main() -> Result<(), Error> {
                 };
                 if first_val == second_val {
                     println!("Equal value for key {:?}", key);
-                    println!("First value : {}", first_val);
-                    println!("Second value: {}", second_val);
+                    println!("<: {}", first_val);
+                    println!(">: {}", second_val);
                 }
             }
         }
     }
+}
+
+fn main() -> Result<(), Error> {
+
+    let (first_path, second_path, display_equal) = input_args()?;
+
+    let first_collection = parse_toml(&first_path)?;
+    let second_collection = parse_toml(&second_path)?;
+
+    let first_keys: Vec<&Vec<String>> = first_collection.keys().collect();
+    let second_keys: Vec<&Vec<String>> = second_collection.keys().collect();
+
+    let (keys_in_first_only, keys_in_second_only, keys_in_both) = compare_vectors(&first_keys,
+                                                                                  &second_keys)?;
+    display(
+        &first_path,
+        &second_path,
+        &first_collection,
+        &second_collection,
+        keys_in_first_only,
+        keys_in_second_only,
+        keys_in_both,
+        display_equal,
+    );
 
 
     Ok(())
