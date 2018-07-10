@@ -1,13 +1,16 @@
-ip = '127.0.0.1'
-sample_from_grid = true
+name = "second"
+version = "0.1.0"
+integer_value = 123
+float_value = 1.23
 
-[keys]
-github = 'zzzzzzz'
-travis = 'yyyyyyyyyyyyyyyyy'
+[field2]
+name = "c"
+values = [2.34, 5.67, 8.90]
 
-[input]
-sample_from_grid = true
-train_std = [ 43.21194, 51.17222, 34.87386,]
-image_width = 4096
-hue_delta = 0.05
-input_data_format = "hybrid_pretiled"
+[field3]
+name = "b"
+values = [1.23, 4.56, 7.89]
+
+[field0]
+name = "a"
+values = [0.12, 3.45, 6.78]
