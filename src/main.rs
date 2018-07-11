@@ -7,13 +7,14 @@ extern crate failure;
 
 use std::path::{PathBuf, Path};
 use std::ffi::OsStr;
-use std::fs::File;
-use std::io::Read;
 use std::collections::HashMap;
 use failure::{Error, err_msg};
 use clap::{Arg, App};
 
-fn input_args() -> Result<(PathBuf, PathBuf, bool), Error> {
+mod utils;
+mod key_handling;
+
+fn input_args() -> Result<(PathBuf, PathBuf, bool, Option<String>), Error> {
     let matches = App::new("difftoml")
                     .version("0.1.0")
                     .author("Ole-Johan Skrede")
@@ -30,6 +31,25 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool), Error> {
                         .takes_value(true)
                         .required(true)
                     )
+                    .arg(Arg::with_name("exclude")
+                        .short("x")
+                        .long("exclude")
+                        .value_name("KEY LIST")
+                        .help("Key(s) to ignore in the diff")
+                        .long_help(
+                        "Specify a single key or a list of keys that you want to exclude in the diff. \n\
+                        Use a comma mark ',' (without whitespace) to distinguish keys. Use a \n\
+                        period mark '.' (without whitespace) to describe key-level hierarchy \n\
+                        Usage: \n\
+                        \t -x key1  // Excludes all entries which has 'key1' as a key somewhere in \n\
+                        \t          // its key hierarchy. E.g. 'key1' or 'key0.key1.key2' or \n\
+                        \t          // 'containskey1inside', but not key0.ke.y1key2'. \n\
+                        \t -x key1.key2  // Excludes all entries which has 'key2' directly after 'key1' \n\
+                        \t               // somewhere in its key hierarchy. E.g. 'key1.key2' or \n\
+                        \t               // 'key0.key1.key2' but not 'key0.key1.key3.key2'. \n\
+                        \t -x key1,key2.key3 // A union of the above two behaviours.")
+                        .takes_value(true)
+                    )
                     .arg(Arg::with_name("display_equal")
                         .short("d")
                         .long("display_equal")
@@ -43,6 +63,10 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool), Error> {
     let first_path = Path::new(matches.value_of("first").unwrap_or(""));
     let second_path = Path::new(matches.value_of("second").unwrap_or(""));
     let display_equal = matches.is_present("display_equal");
+    let exclude = match matches.value_of("exclude") {
+        Some(val) => Some(String::from(val)),
+        None => None
+    };
 
     if !first_path.exists() {
         return Err(err_msg(format!("Path does not exist: {}", first_path.display())))
@@ -58,125 +82,7 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool), Error> {
         return Err(err_msg(format!("Path is not a toml file: {}", second_path.display())))
     }
 
-    Ok((first_path.to_path_buf(), second_path.to_path_buf(), display_equal))
-}
-
-fn read_file_to_string(path: &Path) -> Result<String, Error> {
-    let mut file = File::open(path)?;
-    let mut buffer = String::new();
-    file.read_to_string(&mut buffer)?;
-    Ok(buffer)
-}
-
-/// Parse the toml input into the innermost level
-fn parse_to_inner(
-    mut collection: HashMap<Vec<String>, toml::Value>,
-    key: Vec<String>,
-    toml_val: toml::Value,
-) -> HashMap<Vec<String>, toml::Value> {
-    let updated_collection = match toml_val {
-        toml::Value::String(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Integer(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Float(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Boolean(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Array(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Datetime(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Table(map) => {
-            let mut key = key.clone();
-            for (k, v) in map.into_iter() {
-                key.push(k);
-                collection = parse_to_inner(collection, key.clone(), v);
-                key.pop();
-            }
-            collection
-        },
-    };
-    updated_collection
-}
-
-fn parse_toml(path: &Path) -> Result<HashMap<Vec<String>, toml::Value>, Error> {
-    let string_content = match read_file_to_string(&path) {
-        Ok(val) => val,
-        Err(msg) => {
-            println!("Error reading {} to string", path.display());
-            return Err(msg)
-        }
-    };
-
-    match string_content.parse() {
-        Ok(toml) => {
-            let mut collection = HashMap::<Vec<String>, toml::Value>::new();
-            let mut key = Vec::<String>::new();
-            Ok(parse_to_inner(collection, key, toml))
-        },
-        Err(msg) => {
-            println!("Error parsing {} from string to toml", path.display());
-            return Err(err_msg(msg))
-        }
-    }
-
-}
-
-fn compare_vectors<T: Eq+Clone>(
-    first: &Vec<T>,
-    second: &Vec<T>
-) -> Result<(Vec<T>, Vec<T>, Vec<T>), Error> {
-    let mut in_first_only = Vec::<T>::new();
-    let mut in_second_only = Vec::<T>::new();
-    let mut in_both = Vec::<T>::new();
-
-    for element in first {
-        if second.contains(&element) {
-            in_both.push(element.clone());
-        } else {
-            in_first_only.push(element.clone());
-        }
-    }
-
-    let mut in_both_wrt_second = Vec::<T>::new();
-    for element in second {
-        if first.contains(&element) {
-            in_both_wrt_second.push(element.clone());
-        } else {
-            in_second_only.push(element.clone());
-        }
-    }
-
-    let mut not_found = false;
-    for element in in_both.iter() {
-        if !in_both_wrt_second.contains(&element) {
-            not_found = true;
-        }
-    }
-    for element in in_both_wrt_second.iter() {
-        if !in_both.contains(&element) {
-            not_found = true;
-        }
-    }
-
-    if not_found {
-        return Err(err_msg("ERROR: Asymmetric comparison"))
-    }
-
-    Ok((in_first_only, in_second_only, in_both))
+    Ok((first_path.to_path_buf(), second_path.to_path_buf(), display_equal, exclude))
 }
 
 fn display(
@@ -256,16 +162,22 @@ fn display(
 
 fn main() -> Result<(), Error> {
 
-    let (first_path, second_path, display_equal) = input_args()?;
+    let (first_path, second_path, display_equal, exclude) = input_args()?;
 
-    let first_collection = parse_toml(&first_path)?;
-    let second_collection = parse_toml(&second_path)?;
+    let first_collection = utils::parse_toml(&first_path)?;
+    let second_collection = utils::parse_toml(&second_path)?;
 
     let first_keys: Vec<&Vec<String>> = first_collection.keys().collect();
     let second_keys: Vec<&Vec<String>> = second_collection.keys().collect();
 
-    let (keys_in_first_only, keys_in_second_only, keys_in_both) = compare_vectors(&first_keys,
-                                                                                  &second_keys)?;
+    let first_keys = key_handling::filter_keys(&first_keys, exclude.clone());
+    let first_keys = first_keys.iter().collect();
+    let second_keys = key_handling::filter_keys(&second_keys, exclude);
+    let second_keys = second_keys.iter().collect();
+
+    let (keys_in_first_only, keys_in_second_only, keys_in_both) =
+        key_handling::compare_vectors(&first_keys, &second_keys)?;
+
     display(
         &first_path,
         &second_path,
