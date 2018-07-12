@@ -53,7 +53,7 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool, bool, Option<String>), Error>
                         .takes_value(true)
                     )
                     .arg(Arg::with_name("display_equal")
-                        .short("d")
+                        .short("e")
                         .long("display_equal")
                         .help("Toggle this if you want to display the value of entries that \
                                are equal in the two files.")
