@@ -1,0 +1,13 @@
+lvl0_key0 = "Hello world"
+lvl0_key1 = 123
+
+[lvl0_key2]
+lvl1_key0 = 1.23
+
+[lvl0_key2.lvl1_key1]
+lvl2_key0 = true
+lvl2_key1 = 1979-05-27T07:32:00Z
+
+[lvl0_key3]
+lvl1_key0 = [123, 456, 789]
+lvl1_key1 = ["first", "second", "third"]
