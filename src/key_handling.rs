@@ -61,7 +61,7 @@ pub fn compare_vectors<T: Eq+Clone>(
 ///
 /// to a list of the form
 ///
-/// [["key1"], ["key2.key3"]]
+/// ["key1", "key2.key3"]
 fn convert_string_of_keys_to_list_of_key_str(string_of_keys: &str) -> Vec<String> {
     let mut list_of_keys = Vec::<String>::new();
 
@@ -118,7 +118,7 @@ fn convert_key_list_to_key_str(key_list: &Vec<String>) -> String {
 ///
 /// "key1,key2.key3"
 #[allow(dead_code)]
-fn convert_list_of_keys_to_string_of_keys(list_of_keys: Vec<Vec<String>>) -> String {
+fn convert_list_of_keys_to_string_of_keys(list_of_keys: &Vec<Vec<String>>) -> String {
     let mut string_of_keys = String::from("");
 
     for (ind, key) in list_of_keys.iter().enumerate() {
@@ -175,4 +175,157 @@ pub fn filter_keys(keys: &Vec<&Vec<String>>, blackstr: Option<String>) -> Vec<Ve
         }
     }
     included_keys
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_compare_vectors() {
+        let v1 = vec![1, 2, 3, 4, 5, 6];
+        let v2 = vec![4, 5, 6, 7, 8, 9];
+
+        match compare_vectors(&v1, &v2) {
+            Ok((test_1, test_2, test_both)) => {
+                assert_eq!(vec![1, 2, 3], test_1);
+                assert_eq!(vec![7, 8, 9], test_2);
+                assert_eq!(vec![4, 5, 6], test_both);
+            },
+            Err(_) => {
+                assert!(false);
+            }
+        }
+    }
+
+    #[test]
+    fn test_convert_string_of_keys_to_list_of_key_str() {
+        let string_of_keys = "key1,key2.key3,key4.key5.key6";
+        let test = convert_string_of_keys_to_list_of_key_str(string_of_keys);
+        let correct = vec![String::from("key1"),
+                           String::from("key2.key3"),
+                           String::from("key4.key5.key6")];
+
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_convert_string_of_keys_to_list_of_keys() {
+        let string_of_keys = "key1,key2.key3,key4.key5.key6";
+        let test = convert_string_of_keys_to_list_of_keys(string_of_keys);
+        let correct = vec![vec![String::from("key1")],
+                           vec![String::from("key2"), String::from("key3")],
+                           vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_convert_key_list_to_key_str() {
+        let key_list = vec![String::from("key1"),
+                            String::from("key2"),
+                            String::from("key3")];
+        let test = convert_key_list_to_key_str(&key_list);
+        let correct = "key1.key2.key3";
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_convert_list_of_keys_to_string_of_keys() {
+        let list_of_keys =
+            vec![vec![String::from("key1")],
+            vec![String::from("key2"), String::from("key3")],
+            vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let test = convert_list_of_keys_to_string_of_keys(&list_of_keys);
+        let correct = "key1,key2.key3,key4.key5.key6";
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_filter_keys_1() {
+        let keys = vec![vec![String::from("key1")],
+                        vec![String::from("key2"), String::from("key3")],
+                        vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let blackstr = None;
+        let test = filter_keys(&keys.iter().collect(), blackstr);
+        let correct = vec![vec![String::from("key1")],
+                           vec![String::from("key2"), String::from("key3")],
+                           vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_filter_keys_2() {
+        let keys = vec![vec![String::from("key1")],
+                        vec![String::from("key2"), String::from("key3")],
+                        vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let blackstr = Some(String::from("key1"));
+        let test = filter_keys(&keys.iter().collect(), blackstr);
+        let correct = vec![vec![String::from("key2"), String::from("key3")],
+                           vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_filter_keys_3() {
+        let keys = vec![vec![String::from("key1")],
+                        vec![String::from("key2"), String::from("key3")],
+                        vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let blackstr = Some(String::from("key3"));
+        let test = filter_keys(&keys.iter().collect(), blackstr);
+        let correct = vec![vec![String::from("key1")],
+                           vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_filter_keys_4() {
+        let keys = vec![vec![String::from("key1")],
+                        vec![String::from("key2"), String::from("key3")],
+                        vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let blackstr = Some(String::from("key"));
+        let test = filter_keys(&keys.iter().collect(), blackstr);
+        let correct = Vec::<Vec<String>>::new();
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_filter_keys_5() {
+        let keys = vec![vec![String::from("key1")],
+                        vec![String::from("key2"), String::from("key3")],
+                        vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let blackstr = Some(String::from("ke.y1"));
+        let test = filter_keys(&keys.iter().collect(), blackstr);
+        let correct = vec![vec![String::from("key1")],
+                           vec![String::from("key2"), String::from("key3")],
+                           vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_filter_keys_6() {
+        let keys = vec![vec![String::from("key1")],
+                        vec![String::from("key2"), String::from("key3")],
+                        vec![String::from("key2"), String::from("key3"), String::from("key4")],
+                        vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let blackstr = Some(String::from("key2.key3"));
+        let test = filter_keys(&keys.iter().collect(), blackstr);
+        let correct = vec![vec![String::from("key1")],
+                           vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        assert_eq!(correct, test);
+    }
+
+    #[test]
+    fn test_filter_keys_7() {
+        let keys = vec![vec![String::from("key1")],
+                        vec![String::from("key2"), String::from("key3")],
+                        vec![String::from("key2"), String::from("key3"), String::from("key4")],
+                        vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        let blackstr = Some(String::from("key2.key3.key4"));
+        let test = filter_keys(&keys.iter().collect(), blackstr);
+        let correct = vec![vec![String::from("key1")],
+                           vec![String::from("key2"), String::from("key3")],
+                           vec![String::from("key4"), String::from("key5"), String::from("key6")]];
+        assert_eq!(correct, test);
+    }
+
 }
