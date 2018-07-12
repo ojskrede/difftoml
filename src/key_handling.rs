@@ -99,7 +99,7 @@ fn convert_string_of_keys_to_list_of_keys(string_of_keys: &str) -> Vec<Vec<Strin
 /// to a string of the form
 ///
 /// "key1.key2.key3"
-fn convert_key_list_to_key_str(key_list: &Vec<String>) -> String {
+pub fn convert_key_list_to_key_str(key_list: &Vec<String>) -> String {
     let mut key_str = String::from("");
     for (ind, subkey) in key_list.iter().enumerate() {
         key_str.push_str(subkey);

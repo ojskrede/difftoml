@@ -115,7 +115,7 @@ fn display(
         for key in keys_in_first_only {
             match first_collection.get(key) {
                 Some(val) => {
-                    println!("{:?}: {}", key, val);
+                    println!("{}: {}", key_handling::convert_key_list_to_key_str(&key), val);
                 },
                 None => unreachable!(),
             }
@@ -132,7 +132,7 @@ fn display(
         for key in keys_in_second_only {
             match second_collection.get(key) {
                 Some(val) => {
-                    println!("{:?}: {}", key, val);
+                    println!("{}: {}", key_handling::convert_key_list_to_key_str(&key), val);
                 },
                 None => unreachable!(),
             }
@@ -151,10 +151,10 @@ fn display(
             };
             if first_val != second_val {
                 if color {
-                    let output = format!("{:?}", key);
+                    let output = format!("{}", key_handling::convert_key_list_to_key_str(&key));
                     println!("\n{}", output.red());
                 } else {
-                    println!("\nUnequal value for key {:?}", key);
+                    println!("\nUnequal value for key '{}'", key_handling::convert_key_list_to_key_str(&key));
                 }
                 println!("<: {}", first_val);
                 println!(">: {}", second_val);
@@ -173,10 +173,10 @@ fn display(
                 };
                 if first_val == second_val {
                     if color {
-                        let output = format!("{:?}", key);
+                        let output = format!("{}", key_handling::convert_key_list_to_key_str(&key));
                         println!("\n{}", output.green());
                     } else {
-                        println!("\nEqual value for key {:?}", key);
+                        println!("\nEqual value for key '{}'", key_handling::convert_key_list_to_key_str(&key));
                     }
                     println!("<: {}", first_val);
                     println!(">: {}", second_val);
