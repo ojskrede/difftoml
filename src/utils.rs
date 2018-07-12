@@ -93,30 +93,6 @@ fn parse_to_inner(
     toml_val: toml::Value,
 ) -> HashMap<Vec<String>, toml::Value> {
     let updated_collection = match toml_val {
-        toml::Value::String(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Integer(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Float(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Boolean(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Array(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
-        toml::Value::Datetime(_) => {
-            collection.insert(key, toml_val);
-            collection
-        },
         toml::Value::Table(map) => {
             let mut key = key.clone();
             for (k, v) in map.into_iter() {
@@ -124,6 +100,10 @@ fn parse_to_inner(
                 collection = parse_to_inner(collection, key.clone(), v);
                 key.pop();
             }
+            collection
+        },
+        _ => {
+            collection.insert(key, toml_val);
             collection
         },
     };
