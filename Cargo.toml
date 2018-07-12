@@ -7,3 +7,4 @@ authors = ["Ole-Johan Skrede <ojskrede@gmail.com>"]
 clap = "2.32"
 toml = "0.4"
 failure = "0.1"
+colored = "1.6"

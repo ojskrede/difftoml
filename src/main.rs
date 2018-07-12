@@ -4,17 +4,19 @@
 extern crate clap;
 extern crate toml;
 extern crate failure;
+extern crate colored;
 
 use std::path::{PathBuf, Path};
 use std::ffi::OsStr;
 use std::collections::HashMap;
 use failure::{Error, err_msg};
 use clap::{Arg, App};
+use colored::Colorize;
 
 mod utils;
 mod key_handling;
 
-fn input_args() -> Result<(PathBuf, PathBuf, bool, Option<String>), Error> {
+fn input_args() -> Result<(PathBuf, PathBuf, bool, bool, Option<String>), Error> {
     let matches = App::new("difftoml")
                     .version("0.1.0")
                     .author("Ole-Johan Skrede")
@@ -57,12 +59,19 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool, Option<String>), Error> {
                                are equal in the two files.")
                         .takes_value(false)
                     )
+                    .arg(Arg::with_name("color")
+                        .short("c")
+                        .long("color")
+                        .help("Toggle this if you want colored output")
+                        .takes_value(false)
+                    )
                     .get_matches();
 
     // Gets a value for config if supplied by user, or defaults to "default.conf"
     let first_path = Path::new(matches.value_of("first").unwrap_or(""));
     let second_path = Path::new(matches.value_of("second").unwrap_or(""));
     let display_equal = matches.is_present("display_equal");
+    let color = matches.is_present("color");
     let exclude = match matches.value_of("exclude") {
         Some(val) => Some(String::from(val)),
         None => None
@@ -82,7 +91,7 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool, Option<String>), Error> {
         return Err(err_msg(format!("Path is not a toml file: {}", second_path.display())))
     }
 
-    Ok((first_path.to_path_buf(), second_path.to_path_buf(), display_equal, exclude))
+    Ok((first_path.to_path_buf(), second_path.to_path_buf(), display_equal, color, exclude))
 }
 
 fn display(
@@ -94,10 +103,15 @@ fn display(
     keys_in_second_only: Vec<&Vec<String>>,
     keys_in_both: Vec<&Vec<String>>,
     display_equal: bool,
+    color: bool,
 ) {
     if !keys_in_first_only.is_empty() {
-        println!("");
-        println!("Entries only found in {}", first_path.display());
+        if color {
+            let output = format!("\n{}", first_path.display());
+            println!("{}", output.blue());
+        } else {
+            println!("\nEntries only found in {}", first_path.display());
+        }
         for key in keys_in_first_only {
             match first_collection.get(key) {
                 Some(val) => {
@@ -109,8 +123,12 @@ fn display(
     }
 
     if !keys_in_second_only.is_empty() {
-        println!("");
-        println!("Entries only found in {}", second_path.display());
+        if color {
+            let output = format!("\n{}", second_path.display());
+            println!("{}", output.yellow());
+        } else {
+            println!("\nEntries only found in {}", second_path.display());
+        }
         for key in keys_in_second_only {
             match second_collection.get(key) {
                 Some(val) => {
@@ -122,7 +140,6 @@ fn display(
     }
 
     if !keys_in_both.is_empty() {
-        println!("");
         for key in keys_in_both.clone() {
             let first_val = match first_collection.get(key) {
                 Some(val) => val,
@@ -133,14 +150,18 @@ fn display(
                 None => unreachable!(),
             };
             if first_val != second_val {
-                println!("Unequal value for key {:?}", key);
+                if color {
+                    let output = format!("{:?}", key);
+                    println!("\n{}", output.red());
+                } else {
+                    println!("\nUnequal value for key {:?}", key);
+                }
                 println!("<: {}", first_val);
                 println!(">: {}", second_val);
             }
         }
 
         if display_equal {
-            println!("");
             for key in keys_in_both {
                 let first_val = match first_collection.get(key) {
                     Some(val) => val,
@@ -151,7 +172,12 @@ fn display(
                     None => unreachable!(),
                 };
                 if first_val == second_val {
-                    println!("Equal value for key {:?}", key);
+                    if color {
+                        let output = format!("{:?}", key);
+                        println!("\n{}", output.green());
+                    } else {
+                        println!("\nEqual value for key {:?}", key);
+                    }
                     println!("<: {}", first_val);
                     println!(">: {}", second_val);
                 }
@@ -162,7 +188,7 @@ fn display(
 
 fn main() -> Result<(), Error> {
 
-    let (first_path, second_path, display_equal, exclude) = input_args()?;
+    let (first_path, second_path, display_equal, color, exclude) = input_args()?;
 
     let first_collection = utils::parse_toml(&first_path)?;
     let second_collection = utils::parse_toml(&second_path)?;
@@ -187,6 +213,7 @@ fn main() -> Result<(), Error> {
         keys_in_second_only,
         keys_in_both,
         display_equal,
+        color,
     );
 
 
