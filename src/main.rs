@@ -153,11 +153,13 @@ fn display(
                 if color {
                     let output = format!("{}", key_handling::convert_key_list_to_key_str(&key));
                     println!("\n{}", output.red());
+                    println!("{} {}", "<".blue(), first_val);
+                    println!("{} {}", ">".yellow(), second_val);
                 } else {
                     println!("\nUnequal value for key '{}'", key_handling::convert_key_list_to_key_str(&key));
+                    println!("{} {}", "<", first_val);
+                    println!("{} {}", ">", second_val);
                 }
-                println!("<: {}", first_val);
-                println!(">: {}", second_val);
             }
         }
 
@@ -175,11 +177,13 @@ fn display(
                     if color {
                         let output = format!("{}", key_handling::convert_key_list_to_key_str(&key));
                         println!("\n{}", output.green());
+                        println!("{} {}", "<".blue(), first_val);
+                        println!("{} {}", ">".yellow(), second_val);
                     } else {
                         println!("\nEqual value for key '{}'", key_handling::convert_key_list_to_key_str(&key));
+                        println!("{} {}", "<", first_val);
+                        println!("{} {}", ">", second_val);
                     }
-                    println!("<: {}", first_val);
-                    println!(">: {}", second_val);
                 }
             }
         }
