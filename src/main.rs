@@ -3,16 +3,21 @@
 use anyhow::{anyhow, Error};
 use clap::{App, Arg};
 use colored::Colorize;
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use itertools::Itertools;
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 mod key_handling;
-mod utils;
+mod parse;
+
+use key_handling::{Key, KeyOrigins};
 
 fn input_args() -> Result<(PathBuf, PathBuf, bool, bool, Option<String>), Error> {
     let matches = App::new("difftoml")
-        .version("0.1.0")
+        .version("0.2.0")
         .author("Ole-Johan Skrede")
         .about("Diplay the difference between two toml files")
         .arg(
@@ -71,10 +76,7 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool, bool, Option<String>), Error>
     let second_path = Path::new(matches.value_of("second").unwrap_or(""));
     let display_equal = matches.is_present("display_equal");
     let color = matches.is_present("color");
-    let exclude = match matches.value_of("exclude") {
-        Some(val) => Some(String::from(val)),
-        None => None,
-    };
+    let exclude = matches.value_of("exclude").map(String::from);
 
     if !first_path.exists() {
         return Err(anyhow!("Path does not exist: {}", first_path.display()));
@@ -83,10 +85,10 @@ fn input_args() -> Result<(PathBuf, PathBuf, bool, bool, Option<String>), Error>
         return Err(anyhow!("Path does not exist: {}", second_path.display()));
     }
 
-    if first_path.extension().unwrap_or(OsStr::new("")) != "toml" {
+    if first_path.extension().unwrap_or_else(|| OsStr::new("")) != "toml" {
         return Err(anyhow!("Path is not a toml file: {}", first_path.display()));
     }
-    if second_path.extension().unwrap_or(OsStr::new("")) != "toml" {
+    if second_path.extension().unwrap_or_else(|| OsStr::new("")) != "toml" {
         return Err(anyhow!(
             "Path is not a toml file: {}",
             second_path.display()
@@ -107,56 +109,46 @@ fn display(
     second_path: &Path,
     first_collection: &HashMap<Vec<String>, toml::Value>,
     second_collection: &HashMap<Vec<String>, toml::Value>,
-    keys_in_first_only: Vec<&Vec<String>>,
-    keys_in_second_only: Vec<&Vec<String>>,
-    keys_in_both: Vec<&Vec<String>>,
+    key_origins: &KeyOrigins<Key>,
     display_equal: bool,
     color: bool,
 ) {
-    if !keys_in_first_only.is_empty() {
+    if !key_origins.first_only().is_empty() {
         if color {
             let output = format!("\n{}", first_path.display());
             println!("{}", output.blue());
         } else {
             println!("\nEntries only found in {}", first_path.display());
         }
-        for key in keys_in_first_only {
+        for key in key_origins.first_only().iter() {
             match first_collection.get(key) {
                 Some(val) => {
-                    println!(
-                        "{}: {}",
-                        key_handling::convert_key_list_to_key_str(&key),
-                        val
-                    );
+                    println!("{}: {}", key.iter().join("."), val);
                 }
                 None => unreachable!(),
             }
         }
     }
 
-    if !keys_in_second_only.is_empty() {
+    if !key_origins.second_only().is_empty() {
         if color {
             let output = format!("\n{}", second_path.display());
             println!("{}", output.yellow());
         } else {
             println!("\nEntries only found in {}", second_path.display());
         }
-        for key in keys_in_second_only {
+        for key in key_origins.second_only().iter() {
             match second_collection.get(key) {
                 Some(val) => {
-                    println!(
-                        "{}: {}",
-                        key_handling::convert_key_list_to_key_str(&key),
-                        val
-                    );
+                    println!("{}: {}", key.iter().join("."), val);
                 }
                 None => unreachable!(),
             }
         }
     }
 
-    if !keys_in_both.is_empty() {
-        for key in keys_in_both.clone() {
+    if !key_origins.both().is_empty() {
+        for key in key_origins.both().iter() {
             let first_val = match first_collection.get(key) {
                 Some(val) => val,
                 None => unreachable!(),
@@ -167,23 +159,20 @@ fn display(
             };
             if first_val != second_val {
                 if color {
-                    let output = format!("{}", key_handling::convert_key_list_to_key_str(&key));
+                    let output = key.iter().join(".");
                     println!("\n{}", output.red());
                     println!("{} {}", "<".blue(), first_val);
                     println!("{} {}", ">".yellow(), second_val);
                 } else {
-                    println!(
-                        "\nUnequal value for key '{}'",
-                        key_handling::convert_key_list_to_key_str(&key)
-                    );
-                    println!("{} {}", "<", first_val);
-                    println!("{} {}", ">", second_val);
+                    println!("\nUnequal value for key '{}'", key.iter().join("."));
+                    println!("< {}", first_val);
+                    println!("> {}", second_val);
                 }
             }
         }
 
         if display_equal {
-            for key in keys_in_both {
+            for key in key_origins.both().iter() {
                 let first_val = match first_collection.get(key) {
                     Some(val) => val,
                     None => unreachable!(),
@@ -194,17 +183,14 @@ fn display(
                 };
                 if first_val == second_val {
                     if color {
-                        let output = format!("{}", key_handling::convert_key_list_to_key_str(&key));
+                        let output = key.iter().join(".");
                         println!("\n{}", output.green());
                         println!("{} {}", "<".blue(), first_val);
                         println!("{} {}", ">".yellow(), second_val);
                     } else {
-                        println!(
-                            "\nEqual value for key '{}'",
-                            key_handling::convert_key_list_to_key_str(&key)
-                        );
-                        println!("{} {}", "<", first_val);
-                        println!("{} {}", ">", second_val);
+                        println!("\nEqual value for key '{}'", key.iter().join("."));
+                        println!("< {}", first_val);
+                        println!("> {}", second_val);
                     }
                 }
             }
@@ -215,28 +201,23 @@ fn display(
 fn main() -> Result<(), Error> {
     let (first_path, second_path, display_equal, color, exclude) = input_args()?;
 
-    let first_collection = utils::parse_toml(&first_path)?;
-    let second_collection = utils::parse_toml(&second_path)?;
+    let first_collection = parse::parse_toml(&first_path)?;
+    let second_collection = parse::parse_toml(&second_path)?;
 
-    let first_keys: Vec<&Vec<String>> = first_collection.keys().collect();
-    let second_keys: Vec<&Vec<String>> = second_collection.keys().collect();
+    let first_keys: Vec<Key> = first_collection.keys().cloned().collect();
+    let second_keys: Vec<Key> = second_collection.keys().cloned().collect();
 
     let first_keys = key_handling::filter_keys(&first_keys, exclude.clone());
-    let first_keys = first_keys.iter().collect();
     let second_keys = key_handling::filter_keys(&second_keys, exclude);
-    let second_keys = second_keys.iter().collect();
 
-    let (keys_in_first_only, keys_in_second_only, keys_in_both) =
-        key_handling::compare_vectors(&first_keys, &second_keys)?;
+    let key_origins = key_handling::compare_vectors(&first_keys, &second_keys)?;
 
     display(
         &first_path,
         &second_path,
         &first_collection,
         &second_collection,
-        keys_in_first_only,
-        keys_in_second_only,
-        keys_in_both,
+        &key_origins,
         display_equal,
         color,
     );

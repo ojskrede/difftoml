@@ -3,7 +3,8 @@
 
 use anyhow::{anyhow, Error};
 use std::{collections::HashMap, fs::File, io::Read, path::Path};
-use toml;
+
+use crate::key_handling::Key;
 
 fn read_file_to_string(path: &Path) -> Result<String, Error> {
     let mut file = File::open(path)?;
@@ -12,8 +13,8 @@ fn read_file_to_string(path: &Path) -> Result<String, Error> {
     Ok(buffer)
 }
 
-pub fn parse_toml(path: &Path) -> Result<HashMap<Vec<String>, toml::Value>, Error> {
-    let string_content = match read_file_to_string(&path) {
+pub fn parse_toml(path: &Path) -> Result<HashMap<Key, toml::Value>, Error> {
+    let string_content = match read_file_to_string(path) {
         Ok(val) => val,
         Err(msg) => {
             println!("Error reading {} to string", path.display());
@@ -23,13 +24,13 @@ pub fn parse_toml(path: &Path) -> Result<HashMap<Vec<String>, toml::Value>, Erro
 
     match string_content.parse() {
         Ok(content) => {
-            let collection = HashMap::<Vec<String>, toml::Value>::new();
-            let key = Vec::<String>::new();
+            let collection = HashMap::<Key, toml::Value>::new();
+            let key = Key::new();
             Ok(parse_to_inner(collection, key, content))
         }
         Err(msg) => {
             println!("Error parsing {} from string to toml", path.display());
-            return Err(anyhow!(msg));
+            Err(anyhow!(msg))
         }
     }
 }
@@ -84,13 +85,13 @@ pub fn parse_toml(path: &Path) -> Result<HashMap<Vec<String>, toml::Value>, Erro
 /// ```
 ///
 fn parse_to_inner(
-    mut collection: HashMap<Vec<String>, toml::Value>,
-    key: Vec<String>,
+    mut collection: HashMap<Key, toml::Value>,
+    key: Key,
     toml_val: toml::Value,
-) -> HashMap<Vec<String>, toml::Value> {
-    let updated_collection = match toml_val {
+) -> HashMap<Key, toml::Value> {
+    match toml_val {
         toml::Value::Table(map) => {
-            let mut key = key.clone();
+            let mut key = key;
             for (k, v) in map.into_iter() {
                 key.push(k);
                 collection = parse_to_inner(collection, key.clone(), v);
@@ -102,14 +103,15 @@ fn parse_to_inner(
             collection.insert(key, toml_val);
             collection
         }
-    };
-    updated_collection
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::str::FromStr;
+
+    use crate::key_handling::Key;
 
     #[test]
     fn test_parse_to_inner() {
@@ -130,8 +132,8 @@ mod tests {
         "#;
         match toml_str.parse() {
             Ok(content) => {
-                let mut test_collection = HashMap::<Vec<String>, toml::Value>::new();
-                let mut key = Vec::<String>::new();
+                let test_collection = HashMap::<Vec<String>, toml::Value>::new();
+                let key = Key::new();
                 let test_collection = parse_to_inner(test_collection, key, content);
                 let mut true_collection = HashMap::new();
                 true_collection.insert(
