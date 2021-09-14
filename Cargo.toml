@@ -1,10 +1,11 @@
 [package]
 name = "difftoml"
 version = "0.1.0"
-authors = ["Ole-Johan Skrede <ojskrede@gmail.com>"]
+authors = ["Ole-Johan Skrede <skrede@protonmail.com>"]
+edition = "2018"
 
 [dependencies]
-clap = "2.32"
-toml = "0.4"
-failure = "0.1"
-colored = "1.6"
+anyhow = "1.0"
+clap = "2.33"
+colored = "2.0"
+toml = "0.5"

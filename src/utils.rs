@@ -1,12 +1,9 @@
 //! Misc utility functions
 //!
 
+use anyhow::{anyhow, Error};
+use std::{collections::HashMap, fs::File, io::Read, path::Path};
 use toml;
-use std::path::Path;
-use std::fs::File;
-use std::io::Read;
-use std::collections::HashMap;
-use failure::{Error, err_msg};
 
 fn read_file_to_string(path: &Path) -> Result<String, Error> {
     let mut file = File::open(path)?;
@@ -20,22 +17,21 @@ pub fn parse_toml(path: &Path) -> Result<HashMap<Vec<String>, toml::Value>, Erro
         Ok(val) => val,
         Err(msg) => {
             println!("Error reading {} to string", path.display());
-            return Err(msg)
+            return Err(msg);
         }
     };
 
     match string_content.parse() {
-        Ok(toml) => {
-            let mut collection = HashMap::<Vec<String>, toml::Value>::new();
-            let mut key = Vec::<String>::new();
-            Ok(parse_to_inner(collection, key, toml))
-        },
+        Ok(content) => {
+            let collection = HashMap::<Vec<String>, toml::Value>::new();
+            let key = Vec::<String>::new();
+            Ok(parse_to_inner(collection, key, content))
+        }
         Err(msg) => {
             println!("Error parsing {} from string to toml", path.display());
-            return Err(err_msg(msg))
+            return Err(anyhow!(msg));
         }
     }
-
 }
 
 /// Parse the toml input into the innermost level
@@ -101,15 +97,14 @@ fn parse_to_inner(
                 key.pop();
             }
             collection
-        },
+        }
         _ => {
             collection.insert(key, toml_val);
             collection
-        },
+        }
     };
     updated_collection
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -134,38 +129,57 @@ mod tests {
             lvl1_key1 = ["first", "second", "third"]
         "#;
         match toml_str.parse() {
-            Ok(toml) => {
+            Ok(content) => {
                 let mut test_collection = HashMap::<Vec<String>, toml::Value>::new();
                 let mut key = Vec::<String>::new();
-                let test_collection = parse_to_inner(test_collection, key, toml);
+                let test_collection = parse_to_inner(test_collection, key, content);
                 let mut true_collection = HashMap::new();
-                true_collection.insert(vec![String::from("lvl0_key0")],
-                                       toml::Value::String(String::from("Hello world")));
-                true_collection.insert(vec![String::from("lvl0_key1")],
-                                       toml::Value::Integer(123));
-                true_collection.insert(vec![String::from("lvl0_key2"), String::from("lvl1_key0")],
-                                       toml::Value::Float(1.23));
-                true_collection.insert(vec![String::from("lvl0_key2"), String::from("lvl1_key1"), String::from("lvl2_key0")],
-                                       toml::Value::Boolean(true));
+                true_collection.insert(
+                    vec![String::from("lvl0_key0")],
+                    toml::Value::String(String::from("Hello world")),
+                );
+                true_collection.insert(vec![String::from("lvl0_key1")], toml::Value::Integer(123));
+                true_collection.insert(
+                    vec![String::from("lvl0_key2"), String::from("lvl1_key0")],
+                    toml::Value::Float(1.23),
+                );
+                true_collection.insert(
+                    vec![
+                        String::from("lvl0_key2"),
+                        String::from("lvl1_key1"),
+                        String::from("lvl2_key0"),
+                    ],
+                    toml::Value::Boolean(true),
+                );
                 let datetime = toml::value::Datetime::from_str("1979-05-27T07:32:00Z")
-                                                        .expect("Could not create datetime");
-                true_collection.insert(vec![String::from("lvl0_key2"), String::from("lvl1_key1"), String::from("lvl2_key1")],
-                                       toml::Value::Datetime(datetime));
-                true_collection.insert(vec![String::from("lvl0_key3"), String::from("lvl1_key0")],
-                                       toml::Value::Array(vec![
-                                            toml::Value::Integer(123),
-                                            toml::Value::Integer(456),
-                                            toml::Value::Integer(789),
-                                       ]));
-                true_collection.insert(vec![String::from("lvl0_key3"), String::from("lvl1_key1")],
-                                       toml::Value::Array(vec![
-                                            toml::Value::String(String::from("first")),
-                                            toml::Value::String(String::from("second")),
-                                            toml::Value::String(String::from("third")),
-                                       ]));
+                    .expect("Could not create datetime");
+                true_collection.insert(
+                    vec![
+                        String::from("lvl0_key2"),
+                        String::from("lvl1_key1"),
+                        String::from("lvl2_key1"),
+                    ],
+                    toml::Value::Datetime(datetime),
+                );
+                true_collection.insert(
+                    vec![String::from("lvl0_key3"), String::from("lvl1_key0")],
+                    toml::Value::Array(vec![
+                        toml::Value::Integer(123),
+                        toml::Value::Integer(456),
+                        toml::Value::Integer(789),
+                    ]),
+                );
+                true_collection.insert(
+                    vec![String::from("lvl0_key3"), String::from("lvl1_key1")],
+                    toml::Value::Array(vec![
+                        toml::Value::String(String::from("first")),
+                        toml::Value::String(String::from("second")),
+                        toml::Value::String(String::from("third")),
+                    ]),
+                );
 
                 assert_eq!(true_collection, test_collection)
-            },
+            }
             Err(msg) => {
                 println!("Error parsing string to toml");
                 println!("{:?}", msg);
@@ -180,30 +194,49 @@ mod tests {
         let test_collection = parse_toml(&path).expect("Could not parse toml");
 
         let mut true_collection = HashMap::new();
-        true_collection.insert(vec![String::from("lvl0_key0")],
-                               toml::Value::String(String::from("Hello world")));
-        true_collection.insert(vec![String::from("lvl0_key1")],
-                               toml::Value::Integer(123));
-        true_collection.insert(vec![String::from("lvl0_key2"), String::from("lvl1_key0")],
-                               toml::Value::Float(1.23));
-        true_collection.insert(vec![String::from("lvl0_key2"), String::from("lvl1_key1"), String::from("lvl2_key0")],
-                               toml::Value::Boolean(true));
+        true_collection.insert(
+            vec![String::from("lvl0_key0")],
+            toml::Value::String(String::from("Hello world")),
+        );
+        true_collection.insert(vec![String::from("lvl0_key1")], toml::Value::Integer(123));
+        true_collection.insert(
+            vec![String::from("lvl0_key2"), String::from("lvl1_key0")],
+            toml::Value::Float(1.23),
+        );
+        true_collection.insert(
+            vec![
+                String::from("lvl0_key2"),
+                String::from("lvl1_key1"),
+                String::from("lvl2_key0"),
+            ],
+            toml::Value::Boolean(true),
+        );
         let datetime = toml::value::Datetime::from_str("1979-05-27T07:32:00Z")
-                                                .expect("Could not create datetime");
-        true_collection.insert(vec![String::from("lvl0_key2"), String::from("lvl1_key1"), String::from("lvl2_key1")],
-                               toml::Value::Datetime(datetime));
-        true_collection.insert(vec![String::from("lvl0_key3"), String::from("lvl1_key0")],
-                               toml::Value::Array(vec![
-                                    toml::Value::Integer(123),
-                                    toml::Value::Integer(456),
-                                    toml::Value::Integer(789),
-                               ]));
-        true_collection.insert(vec![String::from("lvl0_key3"), String::from("lvl1_key1")],
-                               toml::Value::Array(vec![
-                                    toml::Value::String(String::from("first")),
-                                    toml::Value::String(String::from("second")),
-                                    toml::Value::String(String::from("third")),
-                               ]));
+            .expect("Could not create datetime");
+        true_collection.insert(
+            vec![
+                String::from("lvl0_key2"),
+                String::from("lvl1_key1"),
+                String::from("lvl2_key1"),
+            ],
+            toml::Value::Datetime(datetime),
+        );
+        true_collection.insert(
+            vec![String::from("lvl0_key3"), String::from("lvl1_key0")],
+            toml::Value::Array(vec![
+                toml::Value::Integer(123),
+                toml::Value::Integer(456),
+                toml::Value::Integer(789),
+            ]),
+        );
+        true_collection.insert(
+            vec![String::from("lvl0_key3"), String::from("lvl1_key1")],
+            toml::Value::Array(vec![
+                toml::Value::String(String::from("first")),
+                toml::Value::String(String::from("second")),
+                toml::Value::String(String::from("third")),
+            ]),
+        );
 
         assert_eq!(true_collection, test_collection)
     }
